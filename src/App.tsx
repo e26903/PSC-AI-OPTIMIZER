@@ -26,6 +26,7 @@ import { rbrData as staticData, RBRRow } from './data/rbrData';
 import { analyzePSCApproval } from './services/geminiService';
 import { fetchGoogleSheetData } from './services/dataService';
 import video0 from './assets/video_0.mp4';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 export default function App() {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -765,8 +766,7 @@ export default function App() {
         </footer>
       </main>
     </div>
+    <SpeedInsights />
     </LayoutGroup>
   );
 }
-
-
