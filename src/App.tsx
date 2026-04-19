@@ -25,7 +25,6 @@ import {
 import { rbrData as staticData, RBRRow } from './data/rbrData';
 import { analyzePSCApproval } from './services/geminiService';
 import { fetchGoogleSheetData } from './services/dataService';
-import video0 from './assets/video_0.mp4';
 
 export default function App() {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -485,7 +484,7 @@ export default function App() {
                 }}
               >
                 <video
-                  src={video0}
+                  src="/video_0.mp4"
                   className="w-full h-full object-cover"
                   muted
                   playsInline
@@ -542,7 +541,7 @@ export default function App() {
                 {!videoError ? (
                     <video
                       ref={videoRef}
-                      src={video0}
+                      src="/video_0.mp4"
                       className="absolute inset-0 w-full h-full object-contain"
                     autoPlay
                     playsInline
@@ -559,8 +558,7 @@ export default function App() {
                     <AlertTriangle className="w-12 h-12 text-[#F59E0B] mx-auto mb-4 opacity-50" />
                     <p className="text-[#F8FAFC] font-bold">Optimization Genie: Missing Asset</p>
                     <p className="text-[#94A3B8] text-sm mt-2 max-w-md mx-auto">
-                      The video file <span className="font-mono text-[#38BDF8]">video_0.mp4</span> was not found in the <span className="font-mono text-[#38BDF8]">/public</span> directory.
-                      Please ensure the file exists in the correct folder for deployment.
+                      The asset <span className="font-mono text-[#38BDF8]">video_0.mp4</span> could not be loaded. Please ensure the file is in the <span className="font-mono text-[#38BDF8]">/public</span> directory and the server is configured to serve static static assets.
                     </p>
                     <button 
                       onClick={() => setVideoState('finished')}
