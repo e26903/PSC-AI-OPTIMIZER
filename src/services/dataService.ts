@@ -9,12 +9,19 @@ export interface DataFetchResult {
 
 export const fetchGoogleSheetData = async (sheetUrl: string): Promise<RBRRow[]> => {
   try {
-    const proxyUrl = `/api/proxy-sheet?url=${encodeURIComponent(sheetUrl)}`;
-    const response = await fetch(proxyUrl);
+    // Convert typical Google Sheet URL to Export CSV URL
+    let fetchUrl = sheetUrl;
+    if (sheetUrl.includes('docs.google.com/spreadsheets/d/')) {
+      const match = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      if (match && match[1]) {
+        fetchUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+      }
+    }
+
+    const response = await fetch(fetchUrl);
     
     if (!response.ok) {
-      const errorDetail = await response.json().catch(() => ({ error: response.statusText }));
-      throw new Error(errorDetail.error || `Failed to fetch: ${response.statusText}`);
+      throw new Error(`Google Sheets responded with ${response.status}: ${response.statusText}`);
     }
     const csvData = await response.text();
 
