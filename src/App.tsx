@@ -484,7 +484,7 @@ export default function App() {
                 }}
               >
                 <video
-                  src="video_0.mp4"
+                  src="/video_0.mp4"
                   className="w-full h-full object-cover"
                   muted
                   playsInline
@@ -539,10 +539,10 @@ export default function App() {
                 className="col-span-full h-full min-h-[400px] flex items-center justify-center rounded-lg overflow-hidden relative bg-[#0F172A] border-2 border-dashed border-[#334155] group"
               >
                 {!videoError ? (
-                  <video
-                    ref={videoRef}
-                    src="video_0.mp4"
-                    className="absolute inset-0 w-full h-full object-contain"
+                    <video
+                      ref={videoRef}
+                      src="/video_0.mp4"
+                      className="absolute inset-0 w-full h-full object-contain"
                     autoPlay
                     playsInline
                     onEnded={() => {
@@ -558,8 +558,8 @@ export default function App() {
                     <AlertTriangle className="w-12 h-12 text-[#F59E0B] mx-auto mb-4 opacity-50" />
                     <p className="text-[#F8FAFC] font-bold">Optimization Genie: Missing Asset</p>
                     <p className="text-[#94A3B8] text-sm mt-2 max-w-md mx-auto">
-                      The video file <span className="font-mono text-[#38BDF8]">video_0.mp4</span> was not found in the project root.
-                      Please ensure the file is uploaded to the application's file explorer.
+                      The video file <span className="font-mono text-[#38BDF8]">video_0.mp4</span> was not found in the <span className="font-mono text-[#38BDF8]">/public</span> directory.
+                      Please ensure the file exists in the correct folder for deployment.
                     </p>
                     <button 
                       onClick={() => setVideoState('finished')}
