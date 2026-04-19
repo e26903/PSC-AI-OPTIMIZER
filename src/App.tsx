@@ -46,15 +46,17 @@ export default function App() {
     const checkVideo = async () => {
       try {
         const response = await fetch('/video_0.mp4', { method: 'HEAD' });
+        const contentType = response.headers.get('content-type');
+        const contentLength = response.headers.get('content-length');
         if (!response.ok) {
-          setVideoDiagnostics(`Server returned ${response.status} for /video_0.mp4`);
+          setVideoDiagnostics(`Status: ${response.status} (${contentType || 'Unknown Type'})`);
           console.error("Video reachability check failed", response.status);
         } else {
-          setVideoDiagnostics("Reachable");
-          console.log("Video reachability check passed");
+          setVideoDiagnostics(`OK: ${contentType || 'video/mp4'} (${contentLength || 'Unknown Size'})`);
+          console.log("Video reachability check passed", contentType, contentLength);
         }
       } catch (err) {
-        setVideoDiagnostics(`Network error check: ${err instanceof Error ? err.message : String(err)}`);
+        setVideoDiagnostics(`Check failed: ${err instanceof Error ? err.message : String(err)}`);
         console.error("Video reachability check error", err);
       }
     };
@@ -525,8 +527,8 @@ export default function App() {
                     setVideoError(true);
                   }}
                 >
-                  <source src="/video_0.mp4" type="video/mp4" />
                   <source src={video0} type="video/mp4" />
+                  <source src="/video_0.mp4" type="video/mp4" />
                 </video>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
                   <span className="text-[10px] font-bold uppercase tracking-tighter text-[#38BDF8]">
@@ -588,8 +590,8 @@ export default function App() {
                         });
                       }}
                     >
-                      <source src="/video_0.mp4" type="video/mp4" />
                       <source src={video0} type="video/mp4" />
+                      <source src="/video_0.mp4" type="video/mp4" />
                       Your browser does not support the video tag.
                     </video>
                 ) : (
