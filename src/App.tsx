@@ -25,6 +25,7 @@ import {
 import { rbrData as staticData, RBRRow } from './data/rbrData';
 import { analyzePSCApproval } from './services/geminiService';
 import { fetchGoogleSheetData } from './services/dataService';
+import video0 from './assets/video_0.mp4';
 
 export default function App() {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -484,7 +485,7 @@ export default function App() {
                 }}
               >
                 <video
-                  src="/video_0.mp4"
+                  src={video0}
                   className="w-full h-full object-cover"
                   muted
                   playsInline
@@ -541,7 +542,7 @@ export default function App() {
                 {!videoError ? (
                     <video
                       ref={videoRef}
-                      src="/video_0.mp4"
+                      src={video0}
                       className="absolute inset-0 w-full h-full object-contain"
                     autoPlay
                     playsInline
