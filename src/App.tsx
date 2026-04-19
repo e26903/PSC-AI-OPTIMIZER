@@ -37,8 +37,29 @@ export default function App() {
   const [result, setResult] = useState<any | null>(null);
   const [videoState, setVideoState] = useState<'idle' | 'playing' | 'finished'>('idle');
   const [videoError, setVideoError] = useState(false);
+  const [videoDiagnostics, setVideoDiagnostics] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Diagnostic check for video asset
+  useEffect(() => {
+    const checkVideo = async () => {
+      try {
+        const response = await fetch('/video_0.mp4', { method: 'HEAD' });
+        if (!response.ok) {
+          setVideoDiagnostics(`Server returned ${response.status} for /video_0.mp4`);
+          console.error("Video reachability check failed", response.status);
+        } else {
+          setVideoDiagnostics("Reachable");
+          console.log("Video reachability check passed");
+        }
+      } catch (err) {
+        setVideoDiagnostics(`Network error check: ${err instanceof Error ? err.message : String(err)}`);
+        console.error("Video reachability check error", err);
+      }
+    };
+    checkVideo();
+  }, []);
 
   // Dynamic Data Source State
   const [activeData, setActiveData] = useState<RBRRow[]>(staticData);
@@ -551,7 +572,9 @@ export default function App() {
                       ref={videoRef}
                       className="absolute inset-0 w-full h-full object-contain"
                       autoPlay
+                      muted
                       playsInline
+                      preload="auto"
                       onEnded={() => {
                         setVideoState('finished');
                       }}
@@ -576,6 +599,11 @@ export default function App() {
                     <p className="text-[#94A3B8] text-sm mt-2 max-w-md mx-auto">
                       The asset <span className="font-mono text-[#38BDF8]">video_0.mp4</span> could not be loaded. Please ensure the file is in the <span className="font-mono text-[#38BDF8]">/public</span> directory and the server is configured to serve static assets.
                     </p>
+                    {videoDiagnostics && (
+                      <p className="text-[10px] text-[#334155] mt-2 font-mono break-all px-4">
+                        Status: {videoDiagnostics}
+                      </p>
+                    )}
                     <button 
                       onClick={() => setVideoState('finished')}
                       className="mt-6 px-6 py-2 bg-[#334155] hover:bg-[#475569] text-white rounded-md text-xs font-bold uppercase transition-colors"

@@ -33,6 +33,35 @@ async function startServer() {
     }
   });
 
+  // Explicit route for the video asset to ensure it's served correctly
+  app.get("/video_0.mp4", async (req, res) => {
+    const videoPath = path.join(process.cwd(), "public", "video_0.mp4");
+    try {
+      await fs.access(videoPath);
+      console.log(`Serving video from: ${videoPath}`);
+      res.sendFile(videoPath);
+    } catch (error) {
+      console.error(`Video file not found at: ${videoPath}`);
+      // Fallback to searching in src/assets just in case
+      const fallbackPath = path.join(process.cwd(), "src", "assets", "video_0.mp4");
+      try {
+        await fs.access(fallbackPath);
+        console.log(`Serving video from fallback: ${fallbackPath}`);
+        res.sendFile(fallbackPath);
+      } catch (fError) {
+        // Final fallback: root directory
+        const rootPath = path.join(process.cwd(), "video_0.mp4");
+        try {
+          await fs.access(rootPath);
+          console.log(`Serving video from root fallback: ${rootPath}`);
+          res.sendFile(rootPath);
+        } catch (rError) {
+          res.status(404).send("Video not found");
+        }
+      }
+    }
+  });
+
   // Save shared app configuration
   app.post("/api/config", async (req, res) => {
     try {
