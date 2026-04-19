@@ -2,16 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 import { RBRRow } from "../data/rbrData";
 
 const getApiKey = () => {
-  // Try platform-injected process.env (AI Studio)
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
-      return process.env.GEMINI_API_KEY;
-    }
-  } catch (e) {
-    // process not defined, ignore
-  }
-
-  // Try Vite environment variable (standard for Vercel/local dev)
+  // Vite exposes environment variables via import.meta.env
+  // For Vercel/Local dev: VITE_GEMINI_API_KEY
+  // For AI Studio: might be injected differently, but usually VITE_ works if defined in .env
   return (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
 };
 
