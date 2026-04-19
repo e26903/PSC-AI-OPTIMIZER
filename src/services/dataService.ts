@@ -9,21 +9,35 @@ export interface DataFetchResult {
 
 export const fetchGoogleSheetData = async (sheetUrl: string): Promise<RBRRow[]> => {
   try {
-    // Convert typical Google Sheet URL to Export CSV URL
-    let fetchUrl = sheetUrl;
-    if (sheetUrl.includes('docs.google.com/spreadsheets/d/')) {
-      const match = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-      if (match && match[1]) {
-        fetchUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+    const proxyUrl = `/api/proxy-sheet?url=${encodeURIComponent(sheetUrl)}`;
+    
+    let csvData = "";
+    try {
+      // 1. Try internal proxy first (works in AI Studio and local Node)
+      const proxyResponse = await fetch(proxyUrl);
+      if (proxyResponse.ok) {
+        csvData = await proxyResponse.text();
+      } else {
+        throw new Error("Proxy failed");
       }
+    } catch (proxyError) {
+      // 2. Fallback to direct fetch (works for "Published to Web" sheets on Vercel)
+      let fetchUrl = sheetUrl;
+      if (sheetUrl.includes('docs.google.com/spreadsheets/d/')) {
+        const match = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+        if (match && match[1]) {
+          fetchUrl = `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv`;
+        }
+      }
+      
+      const directResponse = await fetch(fetchUrl);
+      if (!directResponse.ok) {
+        throw new Error(`Google Sheets responded with ${directResponse.status}: ${directResponse.statusText}`);
+      }
+      csvData = await directResponse.text();
     }
 
-    const response = await fetch(fetchUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Google Sheets responded with ${response.status}: ${response.statusText}`);
-    }
-    const csvData = await response.text();
+    if (!csvData) throw new Error("No data received from sheet");
 
     return new Promise((resolve, reject) => {
       Papa.parse(csvData, {
