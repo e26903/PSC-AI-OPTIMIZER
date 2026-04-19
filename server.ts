@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import fs from "fs/promises";
 
 dotenv.config();
 
@@ -15,6 +16,33 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  const CONFIG_PATH = path.join(process.cwd(), "app-config.json");
+
+  // Get shared app configuration
+  app.get("/api/config", async (req, res) => {
+    try {
+      const exists = await fs.access(CONFIG_PATH).then(() => true).catch(() => false);
+      if (!exists) {
+        return res.json({ sheetUrl: "" });
+      }
+      const data = await fs.readFile(CONFIG_PATH, "utf-8");
+      res.json(JSON.parse(data));
+    } catch (error) {
+      res.status(500).json({ error: "Failed to read configuration" });
+    }
+  });
+
+  // Save shared app configuration
+  app.post("/api/config", async (req, res) => {
+    try {
+      const { sheetUrl } = req.body;
+      await fs.writeFile(CONFIG_PATH, JSON.stringify({ sheetUrl }, null, 2));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to save configuration" });
+    }
+  });
 
   // Google Sheets Proxy to avoid CORS issues
   app.get("/api/proxy-sheet", async (req, res) => {

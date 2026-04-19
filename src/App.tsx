@@ -43,10 +43,28 @@ export default function App() {
   const [activeData, setActiveData] = useState<RBRRow[]>(staticData);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
-  const [sheetUrl, setSheetUrl] = useState<string>(() => localStorage.getItem('genie_sheet_url') || '');
+  const [sheetUrl, setSheetUrl] = useState<string>('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Load dynamic data on mount or URL change
+  // 1. Fetch shared config from server on mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        if (response.ok) {
+          const config = await response.json();
+          if (config.sheetUrl) {
+            setSheetUrl(config.sheetUrl);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch shared config:', err);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  // 2. Load dynamic data on mount or URL change
   useEffect(() => {
     const loadData = async () => {
       if (!sheetUrl) {
@@ -59,7 +77,13 @@ export default function App() {
       try {
         const remoteData = await fetchGoogleSheetData(sheetUrl);
         setActiveData(remoteData);
-        localStorage.setItem('genie_sheet_url', sheetUrl);
+        
+        // Persist to server so other devices see it
+        await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sheetUrl })
+        });
       } catch (err) {
         console.error('Failed to load sheet:', err);
         setDataError('Could not sync with Google Sheet. Ensure the link share settings are "Anyone with the link can view". Fallback to static inventory active.');
