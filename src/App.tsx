@@ -485,7 +485,6 @@ export default function App() {
                 }}
               >
                 <video
-                  src={video0}
                   className="w-full h-full object-cover"
                   muted
                   playsInline
@@ -496,10 +495,18 @@ export default function App() {
                     video.currentTime = video.duration;
                   }}
                   onError={(e) => {
-                    console.error("Corner video failed to load", e);
+                    const target = e.currentTarget as HTMLVideoElement;
+                    console.error("Corner video failed to load", {
+                      src: target.src,
+                      currentSrc: target.currentSrc,
+                      error: target.error,
+                    });
                     setVideoError(true);
                   }}
-                />
+                >
+                  <source src="/video_0.mp4" type="video/mp4" />
+                  <source src={video0} type="video/mp4" />
+                </video>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
                   <span className="text-[10px] font-bold uppercase tracking-tighter text-[#38BDF8]">
                     {videoError ? "Asset: video_0.mp4 Not Found" : "Replay Optimization Genie"}
@@ -542,24 +549,32 @@ export default function App() {
                 {!videoError ? (
                     <video
                       ref={videoRef}
-                      src={video0}
                       className="absolute inset-0 w-full h-full object-contain"
-                    autoPlay
-                    playsInline
-                    onEnded={() => {
-                      setVideoState('finished');
-                    }}
-                    onError={(e) => {
-                      setVideoError(true);
-                      console.error("Main video failed to load", e);
-                    }}
-                  />
+                      autoPlay
+                      playsInline
+                      onEnded={() => {
+                        setVideoState('finished');
+                      }}
+                      onError={(e) => {
+                        setVideoError(true);
+                        const target = e.currentTarget as HTMLVideoElement;
+                        console.error("Main video failed to load", {
+                          src: target.src,
+                          currentSrc: target.currentSrc,
+                          error: target.error,
+                        });
+                      }}
+                    >
+                      <source src="/video_0.mp4" type="video/mp4" />
+                      <source src={video0} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
                 ) : (
                   <div className="text-center p-8">
                     <AlertTriangle className="w-12 h-12 text-[#F59E0B] mx-auto mb-4 opacity-50" />
                     <p className="text-[#F8FAFC] font-bold">Optimization Genie: Missing Asset</p>
                     <p className="text-[#94A3B8] text-sm mt-2 max-w-md mx-auto">
-                      The asset <span className="font-mono text-[#38BDF8]">video_0.mp4</span> could not be loaded. Please ensure the file is in the <span className="font-mono text-[#38BDF8]">/public</span> directory and the server is configured to serve static static assets.
+                      The asset <span className="font-mono text-[#38BDF8]">video_0.mp4</span> could not be loaded. Please ensure the file is in the <span className="font-mono text-[#38BDF8]">/public</span> directory and the server is configured to serve static assets.
                     </p>
                     <button 
                       onClick={() => setVideoState('finished')}
