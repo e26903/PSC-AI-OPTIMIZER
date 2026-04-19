@@ -508,6 +508,8 @@ export default function App() {
                 }}
               >
                 <video
+                  key="corner-video"
+                  src="/video_0.mp4"
                   className="w-full h-full object-cover"
                   muted
                   playsInline
@@ -523,13 +525,11 @@ export default function App() {
                       src: target.src,
                       currentSrc: target.currentSrc,
                       error: target.error,
+                      code: target.error?.code
                     });
                     setVideoError(true);
                   }}
-                >
-                  <source src={video0} type="video/mp4" />
-                  <source src="/video_0.mp4" type="video/mp4" />
-                </video>
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
                   <span className="text-[10px] font-bold uppercase tracking-tighter text-[#38BDF8]">
                     {videoError ? "Asset: video_0.mp4 Not Found" : "Replay Optimization Genie"}
@@ -571,7 +571,9 @@ export default function App() {
               >
                 {!videoError ? (
                     <video
+                      key={`main-video-${videoError}`}
                       ref={videoRef}
+                      src="/video_0.mp4"
                       className="absolute inset-0 w-full h-full object-contain"
                       autoPlay
                       muted
@@ -587,13 +589,10 @@ export default function App() {
                           src: target.src,
                           currentSrc: target.currentSrc,
                           error: target.error,
+                          code: target.error?.code
                         });
                       }}
-                    >
-                      <source src={video0} type="video/mp4" />
-                      <source src="/video_0.mp4" type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
+                    />
                 ) : (
                   <div className="text-center p-8">
                     <AlertTriangle className="w-12 h-12 text-[#F59E0B] mx-auto mb-4 opacity-50" />
@@ -606,12 +605,31 @@ export default function App() {
                         Status: {videoDiagnostics}
                       </p>
                     )}
-                    <button 
-                      onClick={() => setVideoState('finished')}
-                      className="mt-6 px-6 py-2 bg-[#334155] hover:bg-[#475569] text-white rounded-md text-xs font-bold uppercase transition-colors"
-                    >
-                      Skip to Results
-                    </button>
+                    <div className="flex flex-col gap-2 mt-6">
+                      <button 
+                        onClick={() => {
+                          setVideoError(false);
+                          setVideoState('playing');
+                        }}
+                        className="px-6 py-2 bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#0F172A] rounded-md text-xs font-bold uppercase transition-colors"
+                      >
+                        Try Force Reload
+                      </button>
+                      <button 
+                        onClick={() => setVideoState('finished')}
+                        className="px-6 py-2 bg-[#1E293B] hover:bg-[#334155] text-white rounded-md text-xs font-bold uppercase transition-colors"
+                      >
+                        Skip to Results
+                      </button>
+                      <a 
+                        href="/video_0.mp4" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-[#38BDF8] hover:underline mt-2"
+                      >
+                        View Raw Asset (Diagnostics)
+                      </a>
+                    </div>
                   </div>
                 )}
                 
