@@ -38,29 +38,39 @@ export default function App() {
   const [videoState, setVideoState] = useState<'idle' | 'playing' | 'finished'>('idle');
   const [videoError, setVideoError] = useState(false);
   const [videoDiagnostics, setVideoDiagnostics] = useState<string | null>(null);
+  const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Diagnostic check for video asset
+  // Diagnostic check and Blob loading for video asset
   useEffect(() => {
-    const checkVideo = async () => {
+    const loadVideo = async () => {
       try {
-        const response = await fetch('/video_0.mp4', { method: 'HEAD' });
+        const response = await fetch('/video_0.mp4');
         const contentType = response.headers.get('content-type');
         const contentLength = response.headers.get('content-length');
+        
         if (!response.ok) {
-          setVideoDiagnostics(`Status: ${response.status} (${contentType || 'Unknown Type'})`);
-          console.error("Video reachability check failed", response.status);
-        } else {
-          setVideoDiagnostics(`OK: ${contentType || 'video/mp4'} (${contentLength || 'Unknown Size'})`);
-          console.log("Video reachability check passed", contentType, contentLength);
+          setVideoDiagnostics(`Status: ${response.status} (${contentType || 'Unknown'})`);
+          return;
         }
+
+        // Successfully fetched, now create a blob for bulletproof playback
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        setVideoBlobUrl(url);
+        setVideoDiagnostics(`Ready: ${contentType} (${Math.round(blob.size/1024)}KB)`);
+        console.log("Video blob created successfully:", url);
       } catch (err) {
-        setVideoDiagnostics(`Check failed: ${err instanceof Error ? err.message : String(err)}`);
-        console.error("Video reachability check error", err);
+        setVideoDiagnostics(`Fetch failed: ${err instanceof Error ? err.message : String(err)}`);
+        console.error("Video load error", err);
       }
     };
-    checkVideo();
+    loadVideo();
+    
+    return () => {
+      if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
+    };
   }, []);
 
   // Dynamic Data Source State
@@ -510,7 +520,7 @@ export default function App() {
               >
                 <video
                   key="corner-video"
-                  src="/video_0.mp4"
+                  src={videoBlobUrl || "/video_0.mp4"}
                   className="w-full h-full object-cover"
                   muted
                   playsInline
@@ -522,13 +532,14 @@ export default function App() {
                   }}
                   onError={(e) => {
                     const target = e.currentTarget as HTMLVideoElement;
+                    const error = target.error;
                     console.error("Corner video failed to load", {
                       src: target.src,
-                      currentSrc: target.currentSrc,
-                      error: target.error,
-                      code: target.error?.code
+                      error: error?.code,
+                      msg: error?.message
                     });
                     setVideoError(true);
+                    setVideoDiagnostics(`B-Error ${error?.code}: ${error?.message || 'Decode'}`);
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
@@ -572,9 +583,9 @@ export default function App() {
               >
                 {!videoError ? (
                     <video
-                      key={`main-video-${videoError}`}
+                      key={`main-video-${videoError}-${videoBlobUrl ? 'blob' : 'url'}`}
                       ref={videoRef}
-                      src="/video_0.mp4"
+                      src={videoBlobUrl || "/video_0.mp4"}
                       className="absolute inset-0 w-full h-full object-contain"
                       autoPlay
                       muted
@@ -586,12 +597,13 @@ export default function App() {
                       onError={(e) => {
                         setVideoError(true);
                         const target = e.currentTarget as HTMLVideoElement;
+                        const error = target.error;
                         console.error("Main video failed to load", {
                           src: target.src,
-                          currentSrc: target.currentSrc,
-                          error: target.error,
-                          code: target.error?.code
+                          error: error?.code,
+                          msg: error?.message
                         });
+                        setVideoDiagnostics(`B-Error ${error?.code}: ${error?.message || 'Decode'}`);
                       }}
                     />
                 ) : (
