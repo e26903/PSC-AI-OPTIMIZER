@@ -170,7 +170,8 @@ export default function App() {
       setResult(analysis);
     } catch (error) {
       console.error(error);
-      alert("Analysis failed. Please try again.");
+      const errorMsg = error instanceof Error ? error.message : "Analysis failed. Please try again.";
+      alert(errorMsg);
       setVideoState('idle');
     } finally {
       setIsAnalyzing(false);

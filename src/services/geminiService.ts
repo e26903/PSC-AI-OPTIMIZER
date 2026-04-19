@@ -2,15 +2,17 @@ import { GoogleGenAI } from "@google/genai";
 import { RBRRow } from "../data/rbrData";
 
 const getApiKey = () => {
-  // Vite exposes environment variables via import.meta.env
-  // For Vercel/Local dev: VITE_GEMINI_API_KEY
-  // For AI Studio: might be injected differently, but usually VITE_ works if defined in .env
-  return (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
+  // Always use process.env.GEMINI_API_KEY for the Gemini API in this environment.
+  return process.env.GEMINI_API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
 };
 
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
-
 export const analyzePSCApproval = async (selectedRoom: RBRRow, requestedKw: number) => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("Missing Gemini API Key. Please ensure GEMINI_API_KEY or VITE_GEMINI_API_KEY is configured.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const prompt = `
 You are a Wireless PSC (Power, Space, and Cooling) Capacity Planner. 
 Analyze the following request based on the provided Room-by-Room (RBR) record and the "Manual Capacity Analysis" rules.
