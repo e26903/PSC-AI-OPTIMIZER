@@ -19,7 +19,8 @@ import {
   Link2,
   RefreshCw,
   CheckCircle2,
-  X
+  X,
+  Menu
 } from 'lucide-react';
 import { rbrData as staticData, RBRRow } from './data/rbrData';
 import { analyzePSCApproval } from './services/geminiService';
@@ -35,6 +36,7 @@ export default function App() {
   const [result, setResult] = useState<any | null>(null);
   const [videoState, setVideoState] = useState<'idle' | 'playing' | 'finished'>('idle');
   const [videoError, setVideoError] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Dynamic Data Source State
@@ -129,150 +131,195 @@ export default function App() {
 
   return (
     <LayoutGroup>
-      <div className="flex h-screen w-full bg-[#0F172A] text-[#F8FAFC] font-sans overflow-hidden select-none">
-      {/* Sidebar Layout */}
-      <aside className="w-[320px] bg-[#1E293B] border-r border-[#334155] p-6 flex flex-col gap-6 scrollbar-hide overflow-y-auto">
-        <div className="flex items-center gap-3 font-bold text-xl text-[#38BDF8] pb-6 border-b border-[#334155]">
-          <Hexagon className="w-6 h-6 fill-[#38BDF8]/20" strokeWidth={2.5} />
-          PSC AI OPTIMIZER
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <label className="text-[0.75rem] uppercase tracking-wider text-[#94A3B8] font-semibold">MCS SITE NAME</label>
-            <div className="relative">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#38BDF8] z-10" />
-                <input 
-                  type="text" 
-                  placeholder={selectedSite?.toUpperCase() || "Search & Select Site..."}
-                  className="w-full bg-[#0F172A] border border-[#334155] pl-10 pr-10 p-3 rounded-md text-[#F8FAFC] text-sm outline-none focus:ring-1 focus:ring-[#38BDF8] placeholder:text-[#F8FAFC]"
-                  value={siteSearch}
-                  onFocus={() => setIsSiteDropdownOpen(true)}
-                  onChange={(e) => {
-                    setSiteSearch(e.target.value);
-                    setIsSiteDropdownOpen(true);
-                  }}
-                />
-                <ChevronRight 
-                  className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] transition-transform duration-200 pointer-events-none ${isSiteDropdownOpen ? 'rotate-270' : 'rotate-90'}`} 
-                />
-              </div>
-
-              <AnimatePresence>
-                {isSiteDropdownOpen && (
-                  <>
-                    <div 
-                      className="fixed inset-0 z-20" 
-                      onClick={() => {
-                        setIsSiteDropdownOpen(false);
-                        setSiteSearch('');
-                      }} 
-                    />
-                    <motion.div 
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 4 }}
-                      className="absolute left-0 right-0 top-[calc(100%+4px)] bg-[#1E293B] border border-[#334155] rounded-md shadow-2xl z-30 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#334155]"
-                    >
-                      {sites.length > 0 ? (
-                        sites.map(site => (
-                          <div 
-                            key={site} 
-                            className={`p-3 text-sm cursor-pointer hover:bg-[#38BDF8]/10 hover:text-[#38BDF8] border-b border-[#334155]/50 last:border-0 transition-colors ${selectedSite === site ? 'bg-[#38BDF8]/20 text-[#38BDF8] font-bold' : ''}`}
-                            onClick={() => {
-                              setSelectedSite(site);
-                              setSelectedRoom(null);
-                              setResult(null);
-                              setVideoState('idle');
-                              setRequestedKw('');
-                              setIsSiteDropdownOpen(false);
-                              setSiteSearch('');
-                            }}
-                          >
-                            {site.toUpperCase()}
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-8 text-center text-[#94A3B8] italic text-sm">
-                          {siteSearch ? `No sites matching "${siteSearch}" found` : "No sites found in data source"}
-                        </div>
-                      )}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
+      <div className="flex flex-col lg:flex-row min-h-screen lg:h-screen w-full bg-[#0F172A] text-[#F8FAFC] font-sans lg:overflow-hidden select-none">
+        
+        {/* Mobile Header */}
+        <header className="lg:hidden flex items-center justify-between p-4 bg-[#1E293B] border-b border-[#334155] sticky top-0 z-[60]">
+          <div className="flex items-center gap-2 font-bold text-lg text-[#38BDF8]">
+            <Hexagon className="w-5 h-5 fill-[#38BDF8]/20" strokeWidth={2.5} />
+            PSC AI OPTIMIZER
           </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[0.75rem] uppercase tracking-wider text-[#94A3B8] font-semibold">REQUESTED ROOM</label>
-            <div className="relative">
-              <select 
-                className="w-full bg-[#0F172A] border border-[#334155] p-3 rounded-md text-[#F8FAFC] text-sm outline-none appearance-none cursor-pointer disabled:opacity-50 focus:ring-1 focus:ring-[#38BDF8]"
-                disabled={!selectedSite}
-                onChange={(e) => {
-                  setSelectedRoom(filteredRooms.find(r => r.roomName === e.target.value) || null);
-                  setResult(null);
-                  setVideoState('idle');
-                }}
-                value={selectedRoom?.roomName || ''}
-              >
-                <option value="" disabled>Select Room...</option>
-                {filteredRooms.map(room => (
-                  <option key={room.roomName} value={room.roomName}>
-                    {room.roomName.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] rotate-90 pointer-events-none" />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label className="text-[0.75rem] uppercase tracking-wider text-[#94A3B8] font-semibold">Requested Load (kW)</label>
-            <input 
-              type="number" 
-              step="any"
-              placeholder="e.g. 0.747" 
-              className="w-full bg-[#0F172A] border border-[#334155] p-3 rounded-md text-[#F8FAFC] text-sm outline-none focus:ring-1 focus:ring-[#38BDF8]"
-              value={requestedKw}
-              onChange={(e) => setRequestedKw(e.target.value)}
-            />
-          </div>
-
           <button 
-            onClick={handleAnalyze}
-            disabled={!selectedRoom || !requestedKw || isAnalyzing}
-            className="bg-[#38BDF8] text-[#0F172A] p-3.5 rounded-md font-bold uppercase cursor-pointer hover:bg-[#38BDF8]/90 transition-all disabled:bg-[#334155] disabled:text-[#94A3B8] disabled:cursor-not-allowed mt-4 flex items-center justify-center gap-2"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 text-[#38BDF8] hover:bg-[#334155] rounded-md transition-colors"
           >
-            {isAnalyzing ? (
-              <div className="w-4 h-4 border-2 border-[#0F172A]/20 border-t-[#0F172A] rounded-full animate-spin" />
-            ) : (
-              'Analyze Approval'
-            )}
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
+        </header>
 
-          <div className="text-[0.75rem] text-[#94A3B8] leading-relaxed bg-black/20 p-3 rounded-md border border-dashed border-[#334155] mt- auto">
-            <div className="flex justify-between items-center mb-2">
-              <strong className="text-[#F8FAFC]">AI Recommendation Engine</strong>
-              <button 
-                onClick={() => setIsSettingsOpen(true)}
-                className="text-[#38BDF8] hover:text-[#38BDF8]/80 transition-colors p-1"
+        {/* Sidebar Layout */}
+        <AnimatePresence>
+          {(isMobileMenuOpen || typeof window !== 'undefined' && window.innerWidth >= 1024) && (
+            <>
+              {/* Mobile Overlay */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
+              />
+              
+              <motion.aside 
+                initial={typeof window !== 'undefined' && window.innerWidth < 1024 ? { x: -320 } : false}
+                animate={{ x: 0 }}
+                exit={{ x: -320 }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className={`
+                  fixed lg:static inset-y-0 left-0 z-[80] 
+                  w-[280px] sm:w-[320px] lg:w-[320px] 
+                  bg-[#1E293B] border-r border-[#334155] p-6 
+                  flex flex-col gap-6 scrollbar-hide overflow-y-auto
+                  lg:translate-x-0
+                `}
               >
-                <Settings className="w-4 h-4" />
-              </button>
-            </div>
-            Currently running RBR v4.2 analysis against {activeData.length} site parameters.
-            {sheetUrl && (
-              <div className="flex items-center gap-1.5 mt-2 text-[0.65rem] text-[#38BDF8] font-bold">
-                <Link2 className="w-3 h-3" />
-                SYNCED TO REMOTE
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
+                <div className="hidden lg:flex items-center gap-3 font-bold text-xl text-[#38BDF8] pb-6 border-b border-[#334155]">
+                  <Hexagon className="w-6 h-6 fill-[#38BDF8]/20" strokeWidth={2.5} />
+                  PSC AI OPTIMIZER
+                </div>
+
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[0.75rem] uppercase tracking-wider text-[#94A3B8] font-semibold">MCS SITE NAME</label>
+                    <div className="relative">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#38BDF8] z-10" />
+                        <input 
+                          type="text" 
+                          placeholder={selectedSite?.toUpperCase() || "Search & Select Site..."}
+                          className="w-full bg-[#0F172A] border border-[#334155] pl-10 pr-10 p-3 rounded-md text-[#F8FAFC] text-sm outline-none focus:ring-1 focus:ring-[#38BDF8] placeholder:text-[#F8FAFC]"
+                          value={siteSearch}
+                          onFocus={() => setIsSiteDropdownOpen(true)}
+                          onChange={(e) => {
+                            setSiteSearch(e.target.value);
+                            setIsSiteDropdownOpen(true);
+                          }}
+                        />
+                        <ChevronRight 
+                          className={`absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] transition-transform duration-200 pointer-events-none ${isSiteDropdownOpen ? 'rotate-270' : 'rotate-90'}`} 
+                        />
+                      </div>
+
+                      <AnimatePresence>
+                        {isSiteDropdownOpen && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-20" 
+                              onClick={() => {
+                                setIsSiteDropdownOpen(false);
+                                setSiteSearch('');
+                              }} 
+                            />
+                            <motion.div 
+                              initial={{ opacity: 0, y: 4 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 4 }}
+                              className="absolute left-0 right-0 top-[calc(100%+4px)] bg-[#1E293B] border border-[#334155] rounded-md shadow-2xl z-30 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#334155]"
+                            >
+                              {sites.length > 0 ? (
+                                sites.map(site => (
+                                  <div 
+                                    key={site} 
+                                    className={`p-3 text-sm cursor-pointer hover:bg-[#38BDF8]/10 hover:text-[#38BDF8] border-b border-[#334155]/50 last:border-0 transition-colors ${selectedSite === site ? 'bg-[#38BDF8]/20 text-[#38BDF8] font-bold' : ''}`}
+                                    onClick={() => {
+                                      setSelectedSite(site);
+                                      setSelectedRoom(null);
+                                      setResult(null);
+                                      setVideoState('idle');
+                                      setRequestedKw('');
+                                      setIsSiteDropdownOpen(false);
+                                      setSiteSearch('');
+                                    }}
+                                  >
+                                    {site.toUpperCase()}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="p-8 text-center text-[#94A3B8] italic text-sm">
+                                  {siteSearch ? `No sites matching "${siteSearch}" found` : "No sites found in data source"}
+                                </div>
+                              )}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[0.75rem] uppercase tracking-wider text-[#94A3B8] font-semibold">REQUESTED ROOM</label>
+                    <div className="relative">
+                      <select 
+                        className="w-full bg-[#0F172A] border border-[#334155] p-3 rounded-md text-[#F8FAFC] text-sm outline-none appearance-none cursor-pointer disabled:opacity-50 focus:ring-1 focus:ring-[#38BDF8]"
+                        disabled={!selectedSite}
+                        onChange={(e) => {
+                          setSelectedRoom(filteredRooms.find(r => r.roomName === e.target.value) || null);
+                          setResult(null);
+                          setVideoState('idle');
+                        }}
+                        value={selectedRoom?.roomName || ''}
+                      >
+                        <option value="" disabled>Select Room...</option>
+                        {filteredRooms.map(room => (
+                          <option key={room.roomName} value={room.roomName}>
+                            {room.roomName.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94A3B8] rotate-90 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-[0.75rem] uppercase tracking-wider text-[#94A3B8] font-semibold">Requested Load (kW)</label>
+                    <input 
+                      type="number" 
+                      step="any"
+                      placeholder="e.g. 0.747" 
+                      className="w-full bg-[#0F172A] border border-[#334155] p-3 rounded-md text-[#F8FAFC] text-sm outline-none focus:ring-1 focus:ring-[#38BDF8]"
+                      value={requestedKw}
+                      onChange={(e) => setRequestedKw(e.target.value)}
+                    />
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      handleAnalyze();
+                      if (typeof window !== 'undefined' && window.innerWidth < 1024) setIsMobileMenuOpen(false);
+                    }}
+                    disabled={!selectedRoom || !requestedKw || isAnalyzing}
+                    className="bg-[#38BDF8] text-[#0F172A] p-3.5 rounded-md font-bold uppercase cursor-pointer hover:bg-[#38BDF8]/90 transition-all disabled:bg-[#334155] disabled:text-[#94A3B8] disabled:cursor-not-allowed mt-4 flex items-center justify-center gap-2"
+                  >
+                    {isAnalyzing ? (
+                      <div className="w-4 h-4 border-2 border-[#0F172A]/20 border-t-[#0F172A] rounded-full animate-spin" />
+                    ) : (
+                      'Analyze Approval'
+                    )}
+                  </button>
+
+                  <div className="text-[0.75rem] text-[#94A3B8] leading-relaxed bg-black/20 p-3 rounded-md border border-dashed border-[#334155] mt-auto">
+                    <div className="flex justify-between items-center mb-2">
+                      <strong className="text-[#F8FAFC]">AI Recommendation Engine</strong>
+                      <button 
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="text-[#38BDF8] hover:text-[#38BDF8]/80 transition-colors p-1"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </button>
+                    </div>
+                    Currently running RBR v4.2 analysis against {activeData.length} site parameters.
+                    {sheetUrl && (
+                      <div className="flex items-center gap-1.5 mt-2 text-[0.65rem] text-[#38BDF8] font-bold">
+                        <Link2 className="w-3 h-3" />
+                        SYNCED TO REMOTE
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
 
       {/* Settings Modal */}
       <AnimatePresence>
@@ -376,8 +423,8 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Panel Layout */}
-      <main className="flex-1 p-6 grid grid-rows-[auto_1fr_auto] gap-5 overflow-y-auto">
-        <div className="grid grid-cols-3 gap-4">
+      <main className="flex-1 p-4 sm:p-6 grid grid-rows-[auto_1fr_auto] gap-5 overflow-y-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-[#1E293B] border border-[#334155] p-4 rounded-lg">
             <div className="text-[0.7rem] text-[#94A3B8] uppercase font-bold tracking-wider">Room LCD</div>
             <div className="text-2xl font-bold mt-1 text-[#38BDF8]">{selectedRoom?.lcdKw ? `${selectedRoom.lcdKw} kW` : '--'}</div>
@@ -392,7 +439,7 @@ export default function App() {
           </div>
         </div>
 
-        <section className="bg-[#1E293B] border border-[#334155] rounded-xl p-6 grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-6 overflow-y-auto relative">
+        <section className="bg-[#1E293B] border border-[#334155] rounded-xl p-4 sm:p-6 grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-6 overflow-y-auto relative">
           {/* Mini Viewport Video (Shrunk State) */}
           <AnimatePresence mode="wait">
             {videoState === 'finished' && !isAnalyzing && (
@@ -607,7 +654,7 @@ export default function App() {
           </AnimatePresence>
         </section>
 
-        <footer className="flex justify-between items-center pt-5 border-t border-[#334155] text-[0.75rem] text-[#94A3B8]">
+        <footer className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-5 border-t border-[#334155] text-[0.7rem] sm:text-[0.75rem] text-[#94A3B8]">
           <div className="flex items-center gap-2 font-medium">
             <div className="w-2 h-2 rounded-full bg-[#22C55E]" />
             CONNECTED: RBR_STATIC_V4.2 (LIVE AI ENGINE)
