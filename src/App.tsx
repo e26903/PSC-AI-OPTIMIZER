@@ -1,5 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
+import { rbrData as staticData, RBRRow } from './data/rbrData';
+import { analyzePSCApproval } from './services/geminiService';
+import { fetchGoogleSheetData, mapCsvToRBRRows } from './services/dataService';
+import Papa from 'papaparse';
 import { 
   BarChart3, 
   Search, 
@@ -21,11 +25,11 @@ import {
   CheckCircle2,
   X,
   Menu,
-  Copy
+  Copy,
+  Upload,
+  FileSpreadsheet,
+  Globe
 } from 'lucide-react';
-import { rbrData as staticData, RBRRow } from './data/rbrData';
-import { analyzePSCApproval } from './services/geminiService';
-import { fetchGoogleSheetData } from './services/dataService';
 
 export default function App() {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -50,6 +54,9 @@ export default function App() {
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
   const [sheetUrl, setSheetUrl] = useState<string>('');
+  const [localCsvData, setLocalCsvData] = useState<RBRRow[] | null>(null);
+  const [csvFileName, setCsvFileName] = useState<string | null>(null);
+  const [dataSourceMode, setDataSourceMode] = useState<'google' | 'csv' | 'static'>('static');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // 1. Fetch shared config from server on mount
@@ -70,37 +77,71 @@ export default function App() {
     fetchConfig();
   }, []);
 
-  // 2. Load dynamic data on mount or URL change
+  // 2. Data Selection Logic
   useEffect(() => {
     const loadData = async () => {
-      if (!sheetUrl) {
-        setActiveData(staticData);
+      // Priority 1: Local CSV
+      if (dataSourceMode === 'csv' && localCsvData) {
+        setActiveData(localCsvData);
         return;
       }
 
-      setIsDataLoading(true);
-      setDataError(null);
-      try {
-        const remoteData = await fetchGoogleSheetData(sheetUrl);
-        setActiveData(remoteData);
-        
-        // Persist to server so other devices see it
-        await fetch('/api/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sheetUrl })
-        });
-      } catch (err) {
-        console.error('Failed to load sheet:', err);
-        setDataError('Could not sync with Google Sheet. Ensure the link share settings are "Anyone with the link can view". Fallback to static inventory active.');
-        setActiveData(staticData);
-      } finally {
-        setIsDataLoading(false);
+      // Priority 2: Google Sheet
+      if (dataSourceMode === 'google' && sheetUrl) {
+        setIsDataLoading(true);
+        setDataError(null);
+        try {
+          const remoteData = await fetchGoogleSheetData(sheetUrl);
+          setActiveData(remoteData);
+          
+          // Persist URL to server
+          await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sheetUrl })
+          });
+        } catch (err) {
+          console.error('Failed to load sheet:', err);
+          setDataError('Could not sync with Google Sheet. Fallback to static inventory.');
+          setActiveData(staticData);
+          setDataSourceMode('static');
+        } finally {
+          setIsDataLoading(false);
+        }
+        return;
       }
+
+      // Default: Static
+      setActiveData(staticData);
     };
 
     loadData();
-  }, [sheetUrl]);
+  }, [sheetUrl, localCsvData, dataSourceMode]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setCsvFileName(file.name);
+    setIsDataLoading(true);
+    
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const rows = mapCsvToRBRRows(results.data);
+        setLocalCsvData(rows);
+        setDataSourceMode('csv');
+        setIsDataLoading(false);
+        setDataError(null);
+      },
+      error: (err) => {
+        console.error('CSV Parse Error:', err);
+        setDataError('Failed to parse CSV file.');
+        setIsDataLoading(false);
+      }
+    });
+  };
 
   // Derive unique site names starting with MSC
   const sites = useMemo(() => {
@@ -332,13 +373,28 @@ export default function App() {
                         <Settings className="w-4 h-4" />
                       </button>
                     </div>
-                    Currently running RBR v4.2 analysis against {activeData.length} site parameters.
-                    {sheetUrl && (
-                      <div className="flex items-center gap-1.5 mt-2 text-[0.65rem] text-[#38BDF8] font-bold">
-                        <Link2 className="w-3 h-3" />
-                        SYNCED TO REMOTE
-                      </div>
-                    )}
+                    
+                    <div className="space-y-2 mt-2">
+                       <label className="text-[0.6rem] uppercase tracking-widest text-[#475569] font-bold block">Active Data Source</label>
+                       <div className="flex items-center gap-2 p-1.5 bg-[#0F172A] rounded border border-[#334155] text-[0.65rem] font-bold">
+                         {dataSourceMode === 'csv' ? (
+                           <>
+                             <Upload className="w-3 h-3 text-[#F59E0B]" />
+                             <span className="text-[#F59E0B]">LOCAL CSV: {csvFileName?.toUpperCase()}</span>
+                           </>
+                         ) : dataSourceMode === 'google' ? (
+                           <>
+                             <Globe className="w-3 h-3 text-[#38BDF8]" />
+                             <span className="text-[#38BDF8]">G-SHEET SYNC ACTIVE</span>
+                           </>
+                         ) : (
+                           <>
+                             <Database className="w-3 h-3 text-[#94A3B8]" />
+                             <span className="text-[#94A3B8]">BUILT-IN STATIC DATA</span>
+                           </>
+                         )}
+                       </div>
+                    </div>
                   </div>
                 </div>
               </motion.aside>
@@ -376,23 +432,59 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="p-8 space-y-6">
-                <div className="space-y-3">
-                  <label className="text-[0.7rem] uppercase font-bold text-[#94A3B8] tracking-widest block">Google Sheet URL</label>
-                  <div className="relative">
-                    <input 
-                      type="text" 
-                      placeholder="Paste your shared Google Sheet URL..."
-                      className="w-full bg-[#0F172A] border border-[#334155] p-3 pl-10 rounded-md text-[#F8FAFC] text-sm outline-none focus:ring-1 focus:ring-[#38BDF8]"
-                      value={sheetUrl}
-                      onChange={(e) => setSheetUrl(e.target.value)}
-                    />
-                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#38BDF8]" />
-                  </div>
-                  <p className="text-[0.65rem] text-[#64748B] leading-relaxed">
-                    Ensure your Google Sheet is shared with **"Anyone with the link can view"**. The Genie will automatically map headers to site parameters.
-                  </p>
+              <div className="p-8 space-y-8">
+                {/* Method Selector */}
+                <div className="flex gap-4 p-1 bg-[#0F172A] rounded-lg border border-[#334155]">
+                  <button 
+                    onClick={() => setDataSourceMode('google')}
+                    className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-md transition-all text-xs font-bold uppercase tracking-widest ${dataSourceMode === 'google' ? 'bg-[#38BDF8] text-[#0F172A]' : 'text-[#64748B] hover:text-[#38BDF8]'}`}
+                  >
+                    <Globe className="w-4 h-4" />
+                    Google Sheets
+                  </button>
+                  <button 
+                    onClick={() => setDataSourceMode('csv')}
+                    className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-md transition-all text-xs font-bold uppercase tracking-widest ${dataSourceMode === 'csv' ? 'bg-[#F59E0B] text-[#0F172A]' : 'text-[#64748B] hover:text-[#F59E0B]'}`}
+                  >
+                    <Upload className="w-4 h-4" />
+                    CSV Upload
+                  </button>
                 </div>
+
+                {dataSourceMode === 'google' ? (
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      <label className="text-[0.7rem] uppercase font-bold text-[#94A3B8] tracking-widest block">Sheet URL</label>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          placeholder="Paste your shared Google Sheet URL..."
+                          className="w-full bg-[#0F172A] border border-[#334155] p-3 pl-10 rounded-md text-[#F8FAFC] text-sm outline-none focus:ring-1 focus:ring-[#38BDF8]"
+                          value={sheetUrl}
+                          onChange={(e) => setSheetUrl(e.target.value)}
+                        />
+                        <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#38BDF8]" />
+                      </div>
+                      <p className="text-[0.65rem] text-[#64748B] leading-relaxed">
+                        The Genie will automatically map headers to site parameters.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                      <label className="text-[0.7rem] uppercase font-bold text-[#94A3B8] tracking-widest block">Offline .CSV Upload</label>
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[#334155] rounded-xl cursor-pointer hover:bg-[#334155]/20 transition-all bg-[#0F172A]/30">
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <FileSpreadsheet className={`w-8 h-8 mb-3 ${csvFileName ? 'text-[#F59E0B]' : 'text-[#64748B]'}`} />
+                          <p className="text-sm text-[#F8FAFC] font-medium">{csvFileName || 'Choose a .csv file'}</p>
+                          <p className="text-xs text-[#64748B] mt-1">{csvFileName ? 'Click to replace' : 'Upload your 2024 RBR extract'}</p>
+                        </div>
+                        <input type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
+                      </label>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-[#0F172A] p-5 rounded-lg border border-[#334155] space-y-4">
                   <div className="flex justify-between items-center">
@@ -610,8 +702,10 @@ export default function App() {
 
         <footer className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-5 border-t border-[#334155] text-[0.7rem] sm:text-[0.75rem] text-[#94A3B8]">
           <div className="flex items-center gap-2 font-medium">
-            <div className="w-2 h-2 rounded-full bg-[#22C55E]" />
-            CONNECTED: RBR_STATIC_V4.2 (LIVE AI ENGINE)
+            <div className={`w-2 h-2 rounded-full ${isDataLoading ? 'bg-amber-500 animate-pulse' : 'bg-[#22C55E]'}`} />
+            <span className="uppercase tracking-widest">
+              {isDataLoading ? 'SYNCING DATA...' : `DATA SOURCE: ${dataSourceMode === 'google' ? 'GOOGLE CLOUD' : dataSourceMode === 'csv' ? 'LOCAL FILE' : 'STATIC CACHE'}`}
+            </span>
           </div>
           <div className="font-semibold uppercase tracking-widest text-[#475569]">
             VERSION 1.2.0 • PROPRIETARY SYSTEM DATA • &copy; 2026
