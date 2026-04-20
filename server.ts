@@ -44,8 +44,8 @@ async function startServer() {
 
     for (const videoPath of locations) {
       try {
-        await fs.access(videoPath);
-        console.log(`Serving video from: ${videoPath}`);
+        const stats = await fs.stat(videoPath);
+        console.log(`Serving video: ${videoPath} (${stats.size} bytes)`);
         res.type("video/mp4");
         return res.sendFile(videoPath);
       } catch (error) {

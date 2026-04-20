@@ -20,7 +20,8 @@ import {
   RefreshCw,
   CheckCircle2,
   X,
-  Menu
+  Menu,
+  Copy
 } from 'lucide-react';
 import { rbrData as staticData, RBRRow } from './data/rbrData';
 import { analyzePSCApproval } from './services/geminiService';
@@ -38,40 +39,33 @@ export default function App() {
   const [videoState, setVideoState] = useState<'idle' | 'playing' | 'finished'>('idle');
   const [videoError, setVideoError] = useState(false);
   const [videoDiagnostics, setVideoDiagnostics] = useState<string | null>(null);
-  const [videoBlobUrl, setVideoBlobUrl] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Diagnostic check and Blob loading for video asset
+  // Simple video reachability check
   useEffect(() => {
-    const loadVideo = async () => {
+    const checkVideo = async () => {
       try {
-        const response = await fetch('/video_0.mp4');
-        const contentType = response.headers.get('content-type');
-        const contentLength = response.headers.get('content-length');
-        
+        const response = await fetch('/video_0.mp4', { method: 'HEAD' });
         if (!response.ok) {
-          setVideoDiagnostics(`Status: ${response.status} (${contentType || 'Unknown'})`);
-          return;
+          setVideoDiagnostics(`HTTP ${response.status}`);
+        } else {
+          setVideoDiagnostics(`Online (${response.headers.get('content-type')})`);
         }
-
-        // Successfully fetched, now create a blob for bulletproof playback
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        setVideoBlobUrl(url);
-        setVideoDiagnostics(`Ready: ${contentType} (${Math.round(blob.size/1024)}KB)`);
-        console.log("Video blob created successfully:", url);
       } catch (err) {
-        setVideoDiagnostics(`Fetch failed: ${err instanceof Error ? err.message : String(err)}`);
-        console.error("Video load error", err);
+        setVideoDiagnostics('Check failed');
       }
     };
-    loadVideo();
-    
-    return () => {
-      if (videoBlobUrl) URL.revokeObjectURL(videoBlobUrl);
-    };
+    checkVideo();
   }, []);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    });
+  };
 
   // Dynamic Data Source State
   const [activeData, setActiveData] = useState<RBRRow[]>(staticData);
@@ -518,30 +512,30 @@ export default function App() {
                   setVideoState('playing');
                 }}
               >
-                <video
-                  key="corner-video"
-                  src={videoBlobUrl || "/video_0.mp4"}
-                  className="w-full h-full object-cover"
-                  muted
-                  playsInline
-                  autoPlay={false}
-                  loop={false}
-                  onLoadedMetadata={(e) => {
-                    const video = e.currentTarget;
-                    video.currentTime = video.duration;
-                  }}
-                  onError={(e) => {
-                    const target = e.currentTarget as HTMLVideoElement;
-                    const error = target.error;
-                    console.error("Corner video failed to load", {
-                      src: target.src,
-                      error: error?.code,
-                      msg: error?.message
-                    });
-                    setVideoError(true);
-                    setVideoDiagnostics(`B-Error ${error?.code}: ${error?.message || 'Decode'}`);
-                  }}
-                />
+                  <video
+                    key="corner-video"
+                    src={`/video_0.mp4?t=${new Date().getTime()}`}
+                    className="w-full h-full object-cover"
+                    muted // Corner video usually remains muted to not startle
+                    playsInline
+                    autoPlay={false}
+                    loop={false}
+                    onLoadedMetadata={(e) => {
+                      const video = e.currentTarget;
+                      video.currentTime = video.duration;
+                    }}
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLVideoElement;
+                      const error = target.error;
+                      console.error("Corner video failed to load", {
+                        src: target.src,
+                        error: error?.code,
+                        msg: error?.message
+                      });
+                      setVideoError(true);
+                      setVideoDiagnostics(`C-Err ${error?.code}`);
+                    }}
+                  />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
                   <span className="text-[10px] font-bold uppercase tracking-tighter text-[#38BDF8]">
                     {videoError ? "Asset: video_0.mp4 Not Found" : "Replay Optimization Genie"}
@@ -582,30 +576,30 @@ export default function App() {
                 className="col-span-full h-full min-h-[400px] flex items-center justify-center rounded-lg overflow-hidden relative bg-[#0F172A] border-2 border-dashed border-[#334155] group"
               >
                 {!videoError ? (
-                    <video
-                      key={`main-video-${videoError}-${videoBlobUrl ? 'blob' : 'url'}`}
-                      ref={videoRef}
-                      src={videoBlobUrl || "/video_0.mp4"}
-                      className="absolute inset-0 w-full h-full object-contain"
-                      autoPlay
-                      muted
-                      playsInline
-                      preload="auto"
-                      onEnded={() => {
-                        setVideoState('finished');
-                      }}
-                      onError={(e) => {
-                        setVideoError(true);
-                        const target = e.currentTarget as HTMLVideoElement;
-                        const error = target.error;
-                        console.error("Main video failed to load", {
-                          src: target.src,
-                          error: error?.code,
-                          msg: error?.message
-                        });
-                        setVideoDiagnostics(`B-Error ${error?.code}: ${error?.message || 'Decode'}`);
-                      }}
-                    />
+                      <video
+                        key={`main-video-${videoError}`}
+                        ref={videoRef}
+                        src={`/video_0.mp4?t=${new Date().getTime()}`}
+                        className="absolute inset-0 w-full h-full object-contain"
+                        autoPlay
+                        muted={false} // ALLOW AUDIO AS REQUESTED
+                        playsInline
+                        preload="auto"
+                        onEnded={() => {
+                          setVideoState('finished');
+                        }}
+                        onError={(e) => {
+                          setVideoError(true);
+                          const target = e.currentTarget as HTMLVideoElement;
+                          const error = target.error;
+                          console.error("Main video failed to load", {
+                            src: target.src,
+                            error: error?.code,
+                            msg: error?.message
+                          });
+                          setVideoDiagnostics(`M-Err ${error?.code}`);
+                        }}
+                      />
                 ) : (
                   <div className="text-center p-8">
                     <AlertTriangle className="w-12 h-12 text-[#F59E0B] mx-auto mb-4 opacity-50" />
@@ -683,9 +677,29 @@ export default function App() {
                   </div>
                   
                   <div className="space-y-4">
-                    <p className="font-bold text-[#F8FAFC] flex items-center gap-2">
-                       <FileText className="w-4 h-4 text-[#38BDF8]" />
-                       AI Evaluation Summary
+                    <p className="font-bold text-[#F8FAFC] flex items-center justify-between gap-2">
+                       <span className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-[#38BDF8]" />
+                        AI Evaluation Summary
+                       </span>
+                       {result?.resultText && (
+                         <button 
+                           onClick={() => copyToClipboard(result.resultText)}
+                           className="flex items-center gap-1.5 px-3 py-1 bg-[#334155] hover:bg-[#475569] text-[#38BDF8] rounded text-[0.7rem] transition-colors border border-[#38BDF8]/20"
+                         >
+                           {copySuccess ? (
+                             <>
+                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                               COPIED!
+                             </>
+                           ) : (
+                             <>
+                               <Copy className="w-3.5 h-3.5" />
+                               COPY TEXT
+                             </>
+                           )}
+                         </button>
+                       )}
                     </p>
                     <div className="bg-[#0F172A]/50 p-6 rounded-xl border border-[#334155] font-mono text-sm leading-7 whitespace-pre-wrap text-[#CBD5E1] shadow-inner">
                       {result?.resultText || "Analysis pending detailed report generation..."}
