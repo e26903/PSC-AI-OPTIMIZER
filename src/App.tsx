@@ -26,7 +26,6 @@ import {
 import { rbrData as staticData, RBRRow } from './data/rbrData';
 import { analyzePSCApproval } from './services/geminiService';
 import { fetchGoogleSheetData } from './services/dataService';
-import video0 from './assets/video_0.mp4';
 
 export default function App() {
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -36,29 +35,8 @@ export default function App() {
   const [requestedKw, setRequestedKw] = useState<string>('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<any | null>(null);
-  const [videoState, setVideoState] = useState<'idle' | 'playing' | 'finished'>('idle');
-  const [videoError, setVideoError] = useState(false);
-  const [videoDiagnostics, setVideoDiagnostics] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Simple video reachability check
-  useEffect(() => {
-    const checkVideo = async () => {
-      try {
-        const response = await fetch('/video_0.mp4', { method: 'HEAD' });
-        if (!response.ok) {
-          setVideoDiagnostics(`HTTP ${response.status}`);
-        } else {
-          setVideoDiagnostics(`Online (${response.headers.get('content-type')})`);
-        }
-      } catch (err) {
-        setVideoDiagnostics('Check failed');
-      }
-    };
-    checkVideo();
-  }, []);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -167,8 +145,6 @@ export default function App() {
     if (!selectedRoom || !requestedKw) return;
     setIsAnalyzing(true);
     setResult(null);
-    setVideoState('playing');
-    setVideoError(false);
     try {
       const analysis = await analyzePSCApproval(selectedRoom, parseFloat(requestedKw));
       setResult(analysis);
@@ -176,7 +152,6 @@ export default function App() {
       console.error(error);
       const errorMsg = error instanceof Error ? error.message : "Analysis failed. Please try again.";
       alert(errorMsg);
-      setVideoState('idle');
     } finally {
       setIsAnalyzing(false);
     }
@@ -278,7 +253,6 @@ export default function App() {
                                       setSelectedSite(site);
                                       setSelectedRoom(null);
                                       setResult(null);
-                                      setVideoState('idle');
                                       setRequestedKw('');
                                       setIsSiteDropdownOpen(false);
                                       setSiteSearch('');
@@ -304,11 +278,9 @@ export default function App() {
                     <div className="relative">
                       <select 
                         className="w-full bg-[#0F172A] border border-[#334155] p-3 rounded-md text-[#F8FAFC] text-sm outline-none appearance-none cursor-pointer disabled:opacity-50 focus:ring-1 focus:ring-[#38BDF8]"
-                        disabled={!selectedSite}
                         onChange={(e) => {
                           setSelectedRoom(filteredRooms.find(r => r.roomName === e.target.value) || null);
                           setResult(null);
-                          setVideoState('idle');
                         }}
                         value={selectedRoom?.roomName || ''}
                       >
@@ -492,59 +464,7 @@ export default function App() {
           </div>
         </div>
 
-        <section className="bg-[#1E293B] border border-[#334155] rounded-xl p-4 sm:p-6 grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-6 overflow-y-auto relative">
-          {/* Mini Viewport Video (Shrunk State) */}
-          <AnimatePresence mode="wait">
-            {videoState === 'finished' && !isAnalyzing && (
-              <motion.div
-                key="mini-genie"
-                layoutId="geenie-lamp"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ 
-                  duration: 0.6, 
-                  ease: [0.16, 1, 0.3, 1],
-                  opacity: { duration: 0.3 } 
-                }}
-                className="fixed bottom-10 left-10 w-64 aspect-video z-50 shadow-2xl rounded-lg overflow-hidden border-2 border-[#38BDF8]/50 bg-black cursor-pointer hover:scale-105 transition-transform"
-                onClick={() => {
-                  setVideoState('playing');
-                }}
-              >
-                  <video
-                    key="corner-video"
-                    src={`/video_0.mp4?t=${new Date().getTime()}`}
-                    className="w-full h-full object-cover"
-                    muted // Corner video usually remains muted to not startle
-                    playsInline
-                    autoPlay={false}
-                    loop={false}
-                    onLoadedMetadata={(e) => {
-                      const video = e.currentTarget;
-                      video.currentTime = video.duration;
-                    }}
-                    onError={(e) => {
-                      const target = e.currentTarget as HTMLVideoElement;
-                      const error = target.error;
-                      console.error("Corner video failed to load", {
-                        src: target.src,
-                        error: error?.code,
-                        msg: error?.message
-                      });
-                      setVideoError(true);
-                      setVideoDiagnostics(`C-Err ${error?.code}`);
-                    }}
-                  />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
-                  <span className="text-[10px] font-bold uppercase tracking-tighter text-[#38BDF8]">
-                    {videoError ? "Asset: video_0.mp4 Not Found" : "Replay Optimization Genie"}
-                  </span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
+        <section className="bg-[#1E293B] border border-[#334155] rounded-xl p-4 sm:p-6 relative overflow-y-auto min-h-[400px]">
           <AnimatePresence mode="wait">
             {!result && !isAnalyzing ? (
               <motion.div 
@@ -552,7 +472,7 @@ export default function App() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="col-span-full flex flex-col items-center justify-center text-[#94A3B8] gap-4 py-20"
+                className="flex flex-col items-center justify-center text-[#94A3B8] gap-4 py-20 h-full w-full"
               >
                 <div className="w-16 h-16 rounded-full bg-[#0F172A] flex items-center justify-center border border-[#334155]">
                   <Monitor className="w-8 h-8 opacity-40 text-[#38BDF8]" />
@@ -562,99 +482,19 @@ export default function App() {
                   <p className="text-sm">Ready for real-time capacity simulation and risk analysis.</p>
                 </div>
               </motion.div>
-            ) : (isAnalyzing || videoState === 'playing') ? (
+            ) : isAnalyzing ? (
               <motion.div 
-                key="video"
-                layoutId="geenie-lamp"
-                initial={{ opacity: 1 }}
+                key="analyzing"
+                initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ 
-                  duration: 0.6, 
-                  ease: [0.16, 1, 0.3, 1]
-                }}
-                className="col-span-full h-full min-h-[400px] flex items-center justify-center rounded-lg overflow-hidden relative bg-[#0F172A] border-2 border-dashed border-[#334155] group"
+                className="flex flex-col items-center justify-center bg-[#0F172A]/30 backdrop-blur-[2px] h-full w-full py-20"
               >
-                {!videoError ? (
-                      <video
-                        key={`main-video-${videoError}`}
-                        ref={videoRef}
-                        src={`/video_0.mp4?t=${new Date().getTime()}`}
-                        className="absolute inset-0 w-full h-full object-contain"
-                        autoPlay
-                        muted={false} // ALLOW AUDIO AS REQUESTED
-                        playsInline
-                        preload="auto"
-                        onEnded={() => {
-                          setVideoState('finished');
-                        }}
-                        onError={(e) => {
-                          setVideoError(true);
-                          const target = e.currentTarget as HTMLVideoElement;
-                          const error = target.error;
-                          console.error("Main video failed to load", {
-                            src: target.src,
-                            error: error?.code,
-                            msg: error?.message
-                          });
-                          setVideoDiagnostics(`M-Err ${error?.code}`);
-                        }}
-                      />
-                ) : (
-                  <div className="text-center p-8">
-                    <AlertTriangle className="w-12 h-12 text-[#F59E0B] mx-auto mb-4 opacity-50" />
-                    <p className="text-[#F8FAFC] font-bold">Optimization Genie: Missing Asset</p>
-                    <p className="text-[#94A3B8] text-sm mt-2 max-w-md mx-auto">
-                      The asset <span className="font-mono text-[#38BDF8]">video_0.mp4</span> could not be loaded. Please ensure the file is in the <span className="font-mono text-[#38BDF8]">/public</span> directory and the server is configured to serve static assets.
-                    </p>
-                    {videoDiagnostics && (
-                      <p className="text-[10px] text-[#334155] mt-2 font-mono break-all px-4">
-                        Status: {videoDiagnostics}
-                      </p>
-                    )}
-                    <div className="flex flex-col gap-2 mt-6">
-                      <button 
-                        onClick={() => {
-                          setVideoError(false);
-                          setVideoState('playing');
-                        }}
-                        className="px-6 py-2 bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#0F172A] rounded-md text-xs font-bold uppercase transition-colors"
-                      >
-                        Try Force Reload
-                      </button>
-                      <button 
-                        onClick={() => setVideoState('finished')}
-                        className="px-6 py-2 bg-[#1E293B] hover:bg-[#334155] text-white rounded-md text-xs font-bold uppercase transition-colors"
-                      >
-                        Skip to Results
-                      </button>
-                      <a 
-                        href="/video_0.mp4" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-[10px] text-[#38BDF8] hover:underline mt-2"
-                      >
-                        View Raw Asset (Diagnostics)
-                      </a>
-                    </div>
-                  </div>
-                )}
-                
-                {!videoError && (
-                  <button 
-                    onClick={() => setVideoState('finished')}
-                    className="absolute top-4 right-4 bg-black/50 hover:bg-black/80 text-white px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity z-10 border border-white/20"
-                  >
-                    Skip Animation
-                  </button>
-                )}
-
-                {isAnalyzing && result && (
-                  <div className="absolute bottom-4 right-4 bg-[#0F172A]/80 backdrop-blur-md px-4 py-2 rounded-full border border-[#38BDF8]/30 flex items-center gap-2">
-                    <div className="w-2 h-2 bg-[#38BDF8] rounded-full animate-pulse" />
-                    <span className="text-[10px] font-bold text-[#F8FAFC] uppercase tracking-widest">Processing Analysis...</span>
-                  </div>
-                )}
+                <RefreshCw className="w-12 h-12 text-[#38BDF8] animate-spin opacity-60 mb-6" />
+                <div className="text-center space-y-2">
+                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#38BDF8] animate-pulse">Running Neural Optimization</p>
+                  <p className="text-[10px] text-[#94A3B8] uppercase tracking-widest opacity-50">Syncing with PSC Databanks...</p>
+                </div>
               </motion.div>
             ) : (
               <motion.div 
@@ -662,8 +502,8 @@ export default function App() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className="col-span-full grid grid-cols-1 xl:grid-cols-[1fr_auto] xl:grid-cols-[1.5fr_1fr] gap-x-12 gap-y-6"
+                transition={{ duration: 0.4 }}
+                className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-x-12 gap-y-6"
               >
                 <div className="min-w-0">
                   <div className={`inline-flex px-4 py-1.5 rounded-full font-extrabold text-xl mb-6 uppercase tracking-tighter border ${

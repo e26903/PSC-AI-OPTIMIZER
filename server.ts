@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 import fs from "fs/promises";
+import { createReadStream, statSync } from "node:fs";
 
 dotenv.config();
 
@@ -15,7 +16,18 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Content-Length, X-Requested-With");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   app.use(express.json());
+  app.use(express.static(path.join(process.cwd(), "public")));
 
   const CONFIG_PATH = path.join(process.cwd(), "app-config.json");
 
@@ -31,30 +43,6 @@ async function startServer() {
     } catch (error) {
       res.status(500).json({ error: "Failed to read configuration" });
     }
-  });
-
-  // Explicit route for the video asset to ensure it's served correctly
-  app.get("/video_0.mp4", async (req, res) => {
-    const locations = [
-      path.join(process.cwd(), "dist", "video_0.mp4"),
-      path.join(process.cwd(), "public", "video_0.mp4"),
-      path.join(process.cwd(), "src", "assets", "video_0.mp4"),
-      path.join(process.cwd(), "video_0.mp4")
-    ];
-
-    for (const videoPath of locations) {
-      try {
-        const stats = await fs.stat(videoPath);
-        console.log(`Serving video: ${videoPath} (${stats.size} bytes)`);
-        res.type("video/mp4");
-        return res.sendFile(videoPath);
-      } catch (error) {
-        // Continue to next location
-      }
-    }
-
-    console.error("Video file not found in any location");
-    res.status(404).send("Video not found");
   });
 
   // Save shared app configuration
